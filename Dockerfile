@@ -28,11 +28,12 @@
 #
 #   --build-arg IMAGE_VERSION=[16.04|12.04|14.04|17.04]
 #
-ARG IMAGE_VERSION=16.04
+#FROM ubuntu:$IMAGE_VERSION
+FROM ubuntu:16.04
 
-FROM ubuntu:$IMAGE_VERSION
 MAINTAINER Sarom Leang "sarom@si.msg.chem.iastate.edu"
 
+ARG IMAGE_VERSION=16.04
 #
 # Build argument. Modify by adding the following argument during docker build:
 #
@@ -79,9 +80,11 @@ WORKDIR /usr/local/bin
 
 RUN apt-get update && apt-get install -y wget nano csh make gcc gfortran \
 && echo "\n\n\n\tDownloading Run Script\n\n\n" \
+&& wget https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker?dl=1 \
 && wget --no-check-certificate https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker \
 && chmod +x gms-docker \
 && echo "\n\n\n\tDownloading Semaphore Cleaner\n\n\n" \
+&& wget https://www.dropbox.com/s/pjnib04bgnndqse/free-sema.pl?dl=1 \
 && wget --no-check-certificate https://www.dropbox.com/s/pjnib04bgnndqse/free-sema.pl \
 && chmod +x free-sema.pl \
 && echo "\n\n\n\tDowloading GAMESS\n\n\n" \
