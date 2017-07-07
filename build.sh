@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # ref: https://github.com/saromleang/docker-gamess.git
 
@@ -19,28 +19,37 @@ ATLAS_BUILD=${ATLAS_BUILD:-none}
 ## --build-arg REDUCE_IMAGE_SIZE=[true|false]
 REDUCE_IMAGE_SIZE=${REDUCE_IMAGE_SIZE:-true}
 
+## --build-arg INSTALL_DIR=/usr/local/bin
+INSTALL_DIR=/usr/local/bin
+
+## --build-arg GAMESS_HOME=/usr/local/bin/gamess
+GAMESS_HOME=${INSTALL_DIR}/gamess
+
+## -- Image Tag --
+IMAGE_TAG="docker-gamess:public"
+
 ############################################################
 ################### DON'T Change below #####################
 ############################################################
-cp ./Dockerfile ./Dockerfile.new
-sed -i 's/$IMAGE_VERSION/'${IMAGE_VERSION}'/' Dockerfile.new
-#sed -i 's/\\$\\{IMAGE_VERSION\\}/'${IMAGE_VERSION}'/' Dockerfile.new
 
 ## -- Weekly password --
 WEEKLY_PASSWORD=${1}
 
+start_build_time="`date`"
+
 if [ "${ATLAS_BUILD}" == "atlas" ]; then
     #with ATLAS math library (Warning! Long build time):
     echo "... ATLAS_BUILD=${ATLAS_BUILD}"
-    docker build --no-cache=true -t docker-gamess:public --build-arg IMAGE_VERSION=${IMAGE_VERSION} --build-arg BLAS={ATLAS_BUILD} --build-arg REDUCE_IMAGE_SIZE=${REDUCE_IMAGE_SIZE} --build-arg WEEKLY_PASSWORD=${WEEKLY_PASSWORD} -f Dockerfile.new .
+    docker build --no-cache=true -t ${IMAGE_TAG} --build-arg INSTALL_DIR=${INSTALL_DIR} --build-arg IMAGE_VERSION=${IMAGE_VERSION} --build-arg BLAS={ATLAS_BUILD} --build-arg REDUCE_IMAGE_SIZE=${REDUCE_IMAGE_SIZE} --build-arg WEEKLY_PASSWORD=${WEEKLY_PASSWORD} .
 else
     #without ATLAS math library:
     echo "... ATLAS_BUILD=${ATLAS_BUILD}"
-    # docker build --no-cache=true -t docker-gamess:public --build-arg IMAGE_VERSION=16.04 --build-arg BLAS=none --build-arg REDUCE_IMAGE_SIZE=true --build-arg WEEKLY_PASSWORD=xxxxxx .
-
-    docker build --no-cache=true -t docker-gamess:public --build-arg IMAGE_VERSION=${IMAGE_VERSION} --build-arg BLAS=none --build-arg REDUCE_IMAGE_SIZE=${REDUCE_IMAGE_SIZE} --build-arg WEEKLY_PASSWORD=${WEEKLY_PASSWORD} -f Dockerfile.new .
+    docker build --no-cache=true -t ${IMAGE_TAG} --build-arg INSTALL_DIR=${INSTALL_DIR} --build-arg IMAGE_VERSION=${IMAGE_VERSION} --build-arg BLAS=none --build-arg REDUCE_IMAGE_SIZE=${REDUCE_IMAGE_SIZE} --build-arg WEEKLY_PASSWORD=${WEEKLY_PASSWORD} .
 fi
 
+end_build_time="`date`"
+echo "start_build_time=${start_build_time}"
+echo "end_build_time=${end_build_time}"
+
 docker images |grep "docker-gamess"
-rm ./Dockerfile.new
 

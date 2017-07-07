@@ -28,12 +28,10 @@
 #
 #   --build-arg IMAGE_VERSION=[16.04|12.04|14.04|17.04]
 #
+ARG IMAGE_VERSION=16.04
+
 FROM ubuntu:$IMAGE_VERSION
-
 MAINTAINER Sarom Leang "sarom@si.msg.chem.iastate.edu"
-
-ARG IMAGE_VERSION=$IMAGE_VERSION
-ENV IMAGE_VERSION=16.04
 
 #
 # Build argument. Modify by adding the following argument during docker build:
@@ -57,107 +55,123 @@ ARG REDUCE_IMAGE_SIZE=true
 WORKDIR /home
 
 RUN if [ "$BLAS" = "atlas" ]; \
-then apt-get update && apt-get install -y bzip2 wget make gcc gfortran \
-&& echo "\n\n\n\tBuilding ATLAS Math Library\n\n\n" \
-&& wget --no-check-certificate https://downloads.sourceforge.net/project/math-atlas/Stable/3.10.3/atlas3.10.3.tar.bz2 \
-&& for f in *.tar.*; do tar -xf $f && rm -f $f; done \
-&& cd /home/ATLAS \
-&& mkdir build && cd build \
-&& ../configure -b 64 --shared -D c -DWALL \
-&& make build \
-&& make shared \
-&& make install DESTDIR=/opt/atlas \
-&& cd /home \
-&& rm -rf atlas3.10.3.tar.bz2 \
-&& rm -rf ATLAS \
-&& apt-get remove -y bzip2 \
-&& apt-get clean autoclean \
-&& apt-get autoremove -y; \
-fi
+    then apt-get update && apt-get install -y bzip2 wget make gcc gfortran \
+    && echo "\n\n\n\tBuilding ATLAS Math Library\n\n\n" \
+    && wget --no-check-certificate https://downloads.sourceforge.net/project/math-atlas/Stable/3.10.3/atlas3.10.3.tar.bz2 \
+    && for f in *.tar.*; do tar -xf $f && rm -f $f; done \
+    && cd /home/ATLAS \
+    && mkdir build && cd build \
+    && ../configure -b 64 --shared -D c -DWALL \
+    && make build \
+    && make shared \
+    && make install DESTDIR=/opt/atlas \
+    && cd /home \
+    && rm -rf atlas3.10.3.tar.bz2 \
+    && rm -rf ATLAS \
+    && apt-get remove -y bzip2 \
+    && apt-get clean autoclean \
+    && apt-get autoremove -y; \
+    fi
 
 ENV LD_LIBRARY_PATH=/opt/atlas/lib:$LD_LIBRARY_PATH
 
-WORKDIR /usr/local/bin
+ARG INSTALL_DIR=/usr/local/bin
+## ENV INSTALL_DIR=${INSTALL_DIR}
+
+WORKDIR ${INSTALL_DIR}
+COPY ./gms-docker ${INSTALL_DIR}/
 
 RUN apt-get update && apt-get install -y wget nano csh make gcc gfortran \
-&& echo "\n\n\n\tDownloading Run Script\n\n\n" \
-&& wget --no-check-certificate https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker \
-&& chmod +x gms-docker \
-&& echo "\n\n\n\tDowloading GAMESS\n\n\n" \
-&& wget --no-check-certificate --user=source --password=$WEEKLY_PASSWORD http://www.msg.chem.iastate.edu/GAMESS/download/source/gamess-current.tar.gz -O gamess.tar.gz \
-&& tar -xf gamess.tar.gz \
-&& rm -rf gamess.tar.gz \
-&& cd /usr/local/bin/gamess \
-&& mkdir -p object \
-&& export GCC_MAJOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 1` \
-&& export GCC_MINOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 2` \
-&& export NUM_CPU_CORES=`grep -c ^processor /proc/cpuinfo` \
-&& sed -i 's/case 5.3:/case 5.3:\n case 5.4:/g' config \
-&& sed -i 's/case 5.3:/case 5.3:\n case 5.4:/g' comp \
-&& echo "\n\n\n\tSetting Up install.info\n\n\n" \
-&& wget --no-check-certificate https://www.dropbox.com/s/c0sulwqf3zkmh22/install.info.docker \
-&& mv install.info.docker install.info\
-&& sed -i 's/TEMPLATE_GMS_PATH/\/usr\/local\/bin\/gamess/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_BUILD_DIR/\/usr\/local\/bin\/gamess/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_TARGET/linux64/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_FORTRAN/gfortran/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_GFORTRAN_VERNO/'"$GCC_MAJOR_VERSION"'.'"$GCC_MINOR_VERSION"'/g' install.info \
-&& \
-if [ "$BLAS" = "atlas" ]; \
-then sed -i 's/TEMPLATE_GMS_MATHLIB_PATH/\/opt\/atlas\/lib/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_MATHLIB/atlas/g' install.info; \
-else sed -i 's/TEMPLATE_GMS_MATHLIB/none/g' install.info; \
-fi \
-&& sed -i 's/TEMPLATE_GMS_DDI_COMM/sockets/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_LIBCCHEM/false/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_PHI/false/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_SHMTYPE/sysv/g' install.info \
-&& sed -i 's/TEMPLATE_GMS_OPENMP/false/g' install.info \
-&& sed -e "s/^\*UNX/    /" tools/actvte.code > actvte.f \
-&& echo "\n\n\n\tCompiling actvte.x\n\n\n" \
-&& gfortran -o /usr/local/bin/gamess/tools/actvte.x actvte.f \
-&& rm -f actvte.f \
-&& echo "\n\n\n\tGenerating Makefile\n\n\n" \
-&& export makef=/usr/local/bin/gamess/Makefile \
-&& echo "GMS_PATH = /usr/local/bin/gamess" > $makef \
-&& echo "GMS_VERSION = 00" >> $makef \
-&& echo "GMS_BUILD_PATH = /usr/local/bin/gamess" >> $makef \
-&& echo 'include $(GMS_PATH)/Makefile.in' >> $makef \
-&& echo "\n\n\n\tBuilding GAMESS\n\n\n" \
-&& cd /usr/local/bin/gamess && make -j $NUM_CPU_CORES || : && make -j $NUM_CPU_CORES || : \
-&& echo "\n\n\n\tValidating GAMESS\n\n\n" \
-&& make checktest \
-&& make clean_exams \
-&& rm -rf /usr/local/bin/gamess/object \
-&& cd /usr/local/bin/ \
-&& apt-get remove -y wget make \
-&& apt-get clean autoclean \
-&& apt-get autoremove -y \
-&& mkdir /home/gamess /home/gamess/scratch /home/gamess/restart \
-&& rm -rf /var/lib/apt /var/lib/dpkg /var/lib/cache /var/lib/log \
-&& cp /usr/local/bin/gamess/machines/xeon-phi/rungms.interactive /usr/local/bin/gamess/rungms \
-&& if [ "$REDUCE_IMAGE_SIZE" = "true" ]; \
-then echo "\n\n\n\tDeleting un-need files\n\n\n"; \
-rm -rf /usr/local/bin/gamess/INPUT.DOC; \
-rm -rf /usr/local/bin/gamess/INTRO.DOC; \
-rm -rf /usr/local/bin/gamess/IRON.DOC; \
-rm -rf /usr/local/bin/gamess/PROG.DOC; \
-rm -rf /usr/local/bin/gamess/REFS.DOC; \
-rm -rf /usr/local/bin/gamess/TEST.DOC; \
-rm -rf /usr/local/bin/gamess/ddi; \
-rm -rf /usr/local/bin/gamess/graphics; \
-rm -rf /usr/local/bin/gamess/libcchem; \
-rm -rf /usr/local/bin/gamess/machines; \
-rm -rf /usr/local/bin/gamess/misc; \
-rm -rf /usr/local/bin/gamess/object; \
-rm -rf /usr/local/bin/gamess/qmnuc; \
-rm -rf /usr/local/bin/gamess/source; \
-rm -rf /usr/local/bin/gamess/tools; \
-rm -rf /usr/local/bin/gamess/vb2000; \
-fi \
-&& echo "\n\n\n\tContents of install.info\n\n\n" \
-&& cat /usr/local/bin/gamess/install.info
+##  && wget --no-check-certificate https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker \
+    && chmod +x gms-docker \
+    && echo "\n\n\n\tDowloading GAMESS\n\n\n" \
+    && wget --no-check-certificate --user=source --password=$WEEKLY_PASSWORD http://www.msg.chem.iastate.edu/GAMESS/download/source/gamess-current.tar.gz -O gamess.tar.gz \
+    && tar -xf gamess.tar.gz \
+    && rm -rf gamess.tar.gz 
+
+ARG GAMESS_HOME=${INSTALL_DIR}/gamess
+## ENV GAMESS_HOME=${GAMESS_HOME}
+
+RUN echo ${INSTALL_DIR} && \
+    echo ${GAMESS_HOME}
+
+WORKDIR ${GAMESS_HOME}
+
+COPY ./install.info.docker ${GAMESS_HOME}/
+
+RUN mkdir -p object \
+    && echo "\n\n\n\tDownloading Run Script\n\n\n" \
+    && export GCC_MAJOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 1` \
+    && export GCC_MINOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 2` \
+    && export NUM_CPU_CORES=`grep -c ^processor /proc/cpuinfo` \
+    && sed -i 's/case 5.3:/case 5.3:\n case 5.4:/g' config \
+    && sed -i 's/case 5.3:/case 5.3:\n case 5.4:/g' comp \
+    && echo "\n\n\n\tSetting Up install.info\n\n\n" \
+##  && wget --no-check-certificate https://www.dropbox.com/s/c0sulwqf3zkmh22/install.info.docker \
+    && mv install.info.docker install.info\
+    && sed -i 's/TEMPLATE_GMS_PATH/${GAMESS_HOME}/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_BUILD_DIR/${GAMESS_HOME}/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_TARGET/linux64/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_FORTRAN/gfortran/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_GFORTRAN_VERNO/'"$GCC_MAJOR_VERSION"'.'"$GCC_MINOR_VERSION"'/g' install.info \
+    && \
+    if [ "$BLAS" = "atlas" ]; \
+    then sed -i 's/TEMPLATE_GMS_MATHLIB_PATH/\/opt\/atlas\/lib/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_MATHLIB/atlas/g' install.info; \
+    else sed -i 's/TEMPLATE_GMS_MATHLIB/none/g' install.info; \
+    fi \
+    && sed -i 's/TEMPLATE_GMS_DDI_COMM/sockets/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_LIBCCHEM/false/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_PHI/false/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_SHMTYPE/sysv/g' install.info \
+    && sed -i 's/TEMPLATE_GMS_OPENMP/false/g' install.info \
+    && sed -e "s/^\*UNX/    /" tools/actvte.code > actvte.f \
+    && echo "\n\n\n\tCompiling actvte.x\n\n\n" \
+    && gfortran -o ${GAMESS_HOME}/tools/actvte.x actvte.f \
+    && rm -f actvte.f \
+    && echo "\n\n\n\tGenerating Makefile\n\n\n" \
+    && export makef=${GAMESS_HOME}/Makefile \
+    && echo "GMS_PATH = ${GAMESS_HOME}" > $makef \
+    && echo "GMS_VERSION = 00" >> $makef \
+    && echo "GMS_BUILD_PATH = ${GAMESS_HOME}" >> $makef \
+    && echo 'include $(GMS_PATH)/Makefile.in' >> $makef \
+    && echo "\n\n\n\tBuilding GAMESS\n\n\n" \
+    && cd ${GAMESS_HOME} && make -j $NUM_CPU_CORES || : && make -j $NUM_CPU_CORES || : \
+    && echo "\n\n\n\tValidating GAMESS\n\n\n" \
+    && make checktest \
+    && make clean_exams \
+    && rm -rf ${GAMESS_HOME}/object \
+    && cd /usr/local/bin/ \
+    && apt-get remove -y wget make \
+    && apt-get clean autoclean \
+    && apt-get autoremove -y \
+    && mkdir /home/gamess /home/gamess/scratch /home/gamess/restart \
+    && rm -rf /var/lib/apt /var/lib/dpkg /var/lib/cache /var/lib/log \
+    && cp ${GAMESS_HOME}/machines/xeon-phi/rungms.interactive ${GAMESS_HOME}/rungms \
+    && if [ "$REDUCE_IMAGE_SIZE" = "true" ]; \
+    then echo "\n\n\n\tDeleting un-need files\n\n\n"; \
+    rm -rf ${GAMESS_HOME}/INPUT.DOC; \
+    rm -rf ${GAMESS_HOME}/INTRO.DOC; \
+    rm -rf ${GAMESS_HOME}/IRON.DOC; \
+    rm -rf ${GAMESS_HOME}/PROG.DOC; \
+    rm -rf ${GAMESS_HOME}/REFS.DOC; \
+    rm -rf ${GAMESS_HOME}/TEST.DOC; \
+    rm -rf ${GAMESS_HOME}/ddi; \
+    rm -rf ${GAMESS_HOME}/graphics; \
+    rm -rf ${GAMESS_HOME}/libcchem; \
+    rm -rf ${GAMESS_HOME}/machines; \
+    rm -rf ${GAMESS_HOME}/misc; \
+    rm -rf ${GAMESS_HOME}/object; \
+    rm -rf ${GAMESS_HOME}/qmnuc; \
+    rm -rf ${GAMESS_HOME}/source; \
+    rm -rf ${GAMESS_HOME}/tools; \
+    rm -rf ${GAMESS_HOME}/vb2000; \
+    fi \
+    && echo "\n\n\n\tContents of install.info\n\n\n" \
+    && cat ${GAMESS_HOME}/install.info
 
 WORKDIR /home/gamess
-ENTRYPOINT ["/usr/local/bin/gms-docker"]
+
+#ENTRYPOINT ["/usr/local/bin/gms-docker"]
+ENTRYPOINT "${INSTALL_DIR}/gms-docker"
 CMD ["help"]
