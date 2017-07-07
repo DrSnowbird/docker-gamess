@@ -1,6 +1,26 @@
 # docker-gamess
 Deployment of the General Atomic and Molecular Electronic Structure System (GAMESS) quantum chemistry code via a Docker container.
 
+# Quick Start
+To see GAMESS docker working, try use ./build.sh and ./run.sh as explained below. 
+For detailed explanation, please read beyond this section.
+
+## Build
+```
+./build.sh <WEEKLY_PASSWORD_OF_GAMESS_Download>
+```
+You need to get GAMESS source download password from below and you will receive email about how to download if you are approved to use.
+* http://www.msg.ameslab.gov/gamess/License_Agreement.html
+
+## Run
+```
+./run.sh <input_data.inp> [additional arguments, e.g., -p 8]
+e.g.
+./run.sh X-0165-thymine-X.inp -p 1
+```
+
+# Detailed Explanations
+
 **Requirements:**
 - **Ubuntu 12.04 or higher**
 - Docker (download and install): https://www.docker.com/products/docker#/
