@@ -1,4 +1,6 @@
-#!/bin/csh
+#!/bin/csh -x
+
+echo $*
 
 if($argv[1] == "/bin/bash") exec "$argv[1]"
 
@@ -54,8 +56,16 @@ if ($JOB == help) then
 endif
 #
 set nerr=0
+
+echo "`env`"
+echo "USER_HOME=$USER_HOME"
+echo "GAMESS_HOME=$GAMESS_HOME"
+echo "INSTALL_DIR=$INSTALL_DIR"
+echo "Current Directory=`pwd`"
+
 #
-if ((-e $JOB.inp) || (-e /usr/local/bin/gamess/tests/$JOB.inp) | (-e /usr/local/bin/gamess/tests/standard/$JOB.inp)) then
+## if ((-e $JOB.inp) || (-e tests/$JOB.inp) | (-e /usr/local/bin/gamess/tests/$JOB.inp) | (-e /usr/local/bin/gamess/tests/standard/$JOB.inp)) then
+if ((-e $JOB.inp) || (-e $USER_HOME/tests/$JOB.inp) | (-e $INSTALL_DIR/gamess/tests/$JOB.inp) | (-e $INSTALL_DIR/gamess/tests/standard/$JOB.inp)) then
 else
    echo I could not find $JOB.inp in your current directory.
    @ nerr++

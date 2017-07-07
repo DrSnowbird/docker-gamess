@@ -32,6 +32,7 @@ ARG IMAGE_VERSION=16.04
 
 FROM ubuntu:$IMAGE_VERSION
 MAINTAINER Sarom Leang "sarom@si.msg.chem.iastate.edu"
+MAINTAINER DrSnowbird "DrSnowbird@openkbs.org"
 
 #
 # Build argument. Modify by adding the following argument during docker build:
@@ -76,30 +77,37 @@ RUN if [ "$BLAS" = "atlas" ]; \
 ENV LD_LIBRARY_PATH=/opt/atlas/lib:$LD_LIBRARY_PATH
 
 ARG INSTALL_DIR=/usr/local/bin
-## ENV INSTALL_DIR=${INSTALL_DIR}
+ENV INSTALL_DIR=${INSTALL_DIR}
 
 WORKDIR ${INSTALL_DIR}
-COPY ./gms-docker ${INSTALL_DIR}/
-
 RUN apt-get update && apt-get install -y wget nano csh make gcc gfortran \
-##  && wget --no-check-certificate https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker \
-    && chmod +x gms-docker \
     && echo "\n\n\n\tDowloading GAMESS\n\n\n" \
     && wget --no-check-certificate --user=source --password=$WEEKLY_PASSWORD http://www.msg.chem.iastate.edu/GAMESS/download/source/gamess-current.tar.gz -O gamess.tar.gz \
     && tar -xf gamess.tar.gz \
     && rm -rf gamess.tar.gz 
 
 ARG GAMESS_HOME=${INSTALL_DIR}/gamess
-## ENV GAMESS_HOME=${GAMESS_HOME}
+ENV GAMESS_HOME=${GAMESS_HOME}
 
-RUN echo ${INSTALL_DIR} && \
-    echo ${GAMESS_HOME}
+ARG USER_HOME=/home/gamess
+ENV USER_HOME=${USER_HOME}
+
+RUN mkdir ${USER_HOME} ${USER_HOME}/test ${USER_HOME}/scratch ${USER_HOME}/restart && \
+    export INSTALL_DIR=${INSTALL_DIR} && \
+    export USER_HOME=${USER_HOME} && \
+    export GAMESS_HOME=${GAMESS_HOME} && \
+    echo "INSTALL_DIR=${INSTALL_DIR}" && \
+    echo "GAMESS_HOME=${GAMESS_HOME}" && \
+    echo "${USER_HOME}=${USER_HOME}"
 
 WORKDIR ${GAMESS_HOME}
 
 COPY ./install.info.docker ${GAMESS_HOME}/
+COPY ./gms-docker ${USER_HOME}/
 
 RUN mkdir -p object \
+##  && wget --no-check-certificate https://www.dropbox.com/s/f717qgl7yy1f1yd/gms-docker \
+    && chmod +x ${USER_HOME}/gms-docker \
     && echo "\n\n\n\tDownloading Run Script\n\n\n" \
     && export GCC_MAJOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 1` \
     && export GCC_MINOR_VERSION=`gcc --version | grep ^gcc | sed 's/gcc (.*) //g' | grep -o '[0-9]\{1,3\}\.[0-9]\{0,3\}\.[0-9]\{0,3\}' | cut -d '.' -f 2` \
@@ -145,7 +153,7 @@ RUN mkdir -p object \
     && apt-get remove -y wget make \
     && apt-get clean autoclean \
     && apt-get autoremove -y \
-    && mkdir /home/gamess /home/gamess/scratch /home/gamess/restart \
+##    && mkdir ${USER_HOME} ${USER_HOME}/test ${USER_HOME}/scratch ${USER_HOME}/restart \
     && rm -rf /var/lib/apt /var/lib/dpkg /var/lib/cache /var/lib/log \
     && cp ${GAMESS_HOME}/machines/xeon-phi/rungms.interactive ${GAMESS_HOME}/rungms \
     && if [ "$REDUCE_IMAGE_SIZE" = "true" ]; \
@@ -170,8 +178,11 @@ RUN mkdir -p object \
     && echo "\n\n\n\tContents of install.info\n\n\n" \
     && cat ${GAMESS_HOME}/install.info
 
-WORKDIR /home/gamess
+VOLUME ${USER_HOME}
+WORKDIR ${USER_HOME}
 
 #ENTRYPOINT ["/usr/local/bin/gms-docker"]
-ENTRYPOINT "${INSTALL_DIR}/gms-docker"
+ENTRYPOINT ["/home/gamess/gms-docker"]
 CMD ["help"]
+
+
