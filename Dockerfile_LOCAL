@@ -1,3 +1,6 @@
+#
+# GAMESS on UBUNTU 16.04
+#
 # Build settings:
 # Latest GNU compiler : 5.4
 # No math library : Using GAMESS blas.o,  if $BLAS  == "none"
@@ -71,17 +74,26 @@ RUN apt-get update \
     && apt-get clean autoclean \
     && apt-get autoremove -y; \
     fi
+
 ENV LD_LIBRARY_PATH=/opt/atlas/lib:$LD_LIBRARY_PATH
 
 ARG INSTALL_DIR=/usr/local/bin
 ENV INSTALL_DIR=${INSTALL_DIR}
 
 WORKDIR ${INSTALL_DIR}
-RUN apt-get update && apt-get install -y wget nano csh make gcc gfortran \
-    && echo "\n\n\n\tDowloading GAMESS\n\n\n" \
-    && wget --no-check-certificate --user=source --password=$WEEKLY_PASSWORD http://www.msg.chem.iastate.edu/GAMESS/download/source/gamess-current.tar.gz -O gamess.tar.gz \
-    && tar -xf gamess.tar.gz \
-    && rm -rf gamess.tar.gz 
+
+#### ---- Using Local copy GAMESS tar.gz file ----
+COPY Gamess-Source/gamess-current.tar.gz ./
+RUN echo "\n\n\n\tUsing Local copy tar.gz file of GAMESS\n\n\n" \
+    && tar -xf gamess-current.tar.gz \
+    && rm -rf gamess-current.tar.gz 
+
+#### ---- Using Remote Downloading GAMESS tar.gz file ----  
+#RUN apt-get update && apt-get install -y wget nano csh make gcc gfortran \
+#    && echo "\n\n\n\tDowloading GAMESS\n\n\n" \
+#    && wget --no-check-certificate --user=source --password=$WEEKLY_PASSWORD http://www.msg.chem.iastate.edu/GAMESS/download/source/gamess-current.tar.gz -O gamess.tar.gz \
+#    && tar -xf gamess.tar.gz \
+#    && rm -rf gamess.tar.gz 
 
 ARG GAMESS_HOME=${INSTALL_DIR}/gamess
 ENV GAMESS_HOME=${GAMESS_HOME}
