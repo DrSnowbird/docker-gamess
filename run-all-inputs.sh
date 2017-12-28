@@ -5,12 +5,11 @@ if [ $# -lt 1 ]; then
     echo "  ${0} <number of cores, e.g., 8>"
     echo "e.g."
     echo "  ${0} 16"
-    exit 1
 fi
 
 ## -- mostly, don't change this --
 
-DOCKER_RUN_ARGS="$1"
+DOCKER_RUN_ARGS="${1:-16}"
 
 ##################################################
 #### ---- Mandatory: Change those ----

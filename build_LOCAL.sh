@@ -9,6 +9,12 @@ if [ $# -lt 1 ]; then
     #exit 1
 fi
 
+echo "-------------------------------------------------------------"
+echo "For local build (no download source) to work:"
+echo ".. Make sure you save the tar.gz to ./Gamess-Source directory"
+echo "-------------------------------------------------------------"
+read -n 1 -s -r -p "Press any key to continue"
+
 ############################################################
 ################### Change VARS if needed ##################
 ############################################################
